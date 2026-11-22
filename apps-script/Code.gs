@@ -1,12 +1,13 @@
 /**
  * «Мам, прибрано!» — приймання заявок із сайту.
- * Заявка падає в таблицю «Замовлення» і приходить повідомленням у Telegram.
+ * Заявка падає в таблицю «Замовлення», приходить листом на пошту і (за бажанням) у Telegram.
  *
  * Налаштування (один раз): Project Settings → Script properties
  *   TELEGRAM_TOKEN   — токен бота від @BotFather
  *   TELEGRAM_CHAT_ID — id чату або групи, куди слати заявки
  */
 
+const SHEET_ID = '1Gao9SLELey1YAhCEtDSAjMwi11EHrUdSVjdQ8rg3low';
 const SHEET_NAME = 'Замовлення';
 
 function doPost(e) {
@@ -20,7 +21,7 @@ function doPost(e) {
       return json_({ ok: false, error: 'phone' });
     }
 
-    const sheet = SpreadsheetApp.getActive().getSheetByName(SHEET_NAME);
+    const sheet = SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME);
     sheet.appendRow([
       new Date(),                 // A Дата заявки
       clean_(data.name),          // B Ім’я
@@ -33,6 +34,7 @@ function doPost(e) {
       'Нова'                      // I Статус
     ]);
 
+    notifyEmail_(data);
     notifyTelegram_(data);
     return json_({ ok: true });
   } catch (err) {
@@ -72,7 +74,7 @@ function notifyTelegram_(d) {
     d.date ? 'Бажана дата: ' + d.date : '',
     d.comment ? 'Коментар: ' + d.comment : '',
     '',
-    'Таблиця: ' + SpreadsheetApp.getActive().getUrl()
+    'Таблиця: https://docs.google.com/spreadsheets/d/' + SHEET_ID
   ].filter(Boolean).join('\n');
 
   UrlFetchApp.fetch('https://api.telegram.org/bot' + token + '/sendMessage', {
@@ -81,6 +83,21 @@ function notifyTelegram_(d) {
     payload: JSON.stringify({ chat_id: chatId, text: text, disable_web_page_preview: true }),
     muteHttpExceptions: true
   });
+}
+
+function notifyEmail_(d) {
+  const to = PropertiesService.getScriptProperties().getProperty('NOTIFY_EMAIL') || Session.getEffectiveUser().getEmail();
+  if (!to) return;
+  const body = [
+    'Ситуація: ' + (d.package || '—'),
+    'Кімнат: ' + (d.rooms || '—'),
+    'Ім’я: ' + (d.name || '—'),
+    'Телефон: ' + (d.phone || '—'),
+    'Бажана дата: ' + (d.date || '—'),
+    '',
+    'Таблиця: https://docs.google.com/spreadsheets/d/' + SHEET_ID
+  ].join('\n');
+  MailApp.sendEmail(to, 'Нова заявка — Мам, прибрано! (' + (d.package || 'сайт') + ')', body);
 }
 
 function json_(obj) {
