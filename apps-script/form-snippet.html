@@ -1,0 +1,60 @@
+<!--
+  Форма замовлення «Мам, прибрано!» для справжнього сайту.
+  Замініть APPS_SCRIPT_URL на адресу веб-застосунку з Google Apps Script
+  (Deploy → New deployment → Web app → URL, закінчується на /exec).
+-->
+<form id="order-form">
+  <label>Ситуація
+    <select name="package" required>
+      <option>Поки мама не прийшла</option>
+      <option>Чиста оселя — щаслива дружина</option>
+      <option>Свекруха вже в дорозі</option>
+      <option>Після вечірки</option>
+      <option>Хоч з підлоги їж</option>
+      <option>По поличках</option>
+      <option>Заставу повернуть</option>
+      <option>Без нагадувань</option>
+    </select>
+  </label>
+  <label>Кількість кімнат
+    <select name="rooms"><option>1</option><option>2</option><option>3</option><option>4 і більше</option></select>
+  </label>
+  <label>Ім’я <input name="name" autocomplete="name" required></label>
+  <label>Телефон <input name="phone" type="tel" placeholder="+380" autocomplete="tel" required></label>
+  <label>Адреса (необов’язково) <input name="address" autocomplete="street-address"></label>
+  <label>Бажана дата <input name="date" type="date"></label>
+  <label>Коментар <textarea name="comment" rows="3" placeholder="Що дратує найбільше?"></textarea></label>
+  <!-- пастка для спам-ботів: людям не видно -->
+  <input name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
+  <button type="submit">Розрахувати вартість</button>
+  <p id="order-status" role="status"></p>
+</form>
+
+<script>
+  const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/ВАШ_ID/exec';
+  const form = document.getElementById('order-form');
+  const status = document.getElementById('order-status');
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = form.querySelector('button');
+    btn.disabled = true;
+    status.textContent = 'Надсилаємо…';
+    const data = Object.fromEntries(new FormData(form));
+    try {
+      // text/plain + no-cors: Google Apps Script приймає без додаткових налаштувань CORS
+      await fetch(APPS_SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(data)
+      });
+      form.reset();
+      status.textContent = 'Дякуємо! Скоро зателефонуємо, щоб підтвердити дату й ціну.';
+    } catch (err) {
+      status.textContent = 'Не вдалося надіслати. Напишіть нам в Instagram @mamprybrano.';
+    } finally {
+      btn.disabled = false;
+    }
+  });
+</script>
